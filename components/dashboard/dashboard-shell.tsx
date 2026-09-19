@@ -7,6 +7,8 @@ import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CommandPalette } from '@/components/command-palette';
+import { WorkspaceSwitcher } from '@/components/dashboard/workspace-switcher';
+import { useWorkspace } from '@/components/providers/workspace-provider';
 import {
   LayoutDashboard,
   CreditCard,
@@ -24,6 +26,7 @@ import {
   DollarSign,
   Bell,
   Database,
+  Building2,
 } from 'lucide-react';
 
 interface DashboardShellProps {
@@ -45,8 +48,9 @@ export function DashboardShell({ user, subscription, children }: DashboardShellP
   const pathname = usePathname();
   const [commandOpen, setCommandOpen] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const { currentWorkspace } = useWorkspace();
 
-  const planId = subscription?.planId || 'free';
+  const planId = currentWorkspace?.plan || subscription?.planId || 'free';
   const planLabel = planId.toUpperCase();
 
   const navItems = [
@@ -126,8 +130,11 @@ export function DashboardShell({ user, subscription, children }: DashboardShellP
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 top-14 z-40 bg-white p-4 space-y-4 flex flex-col justify-between overflow-y-auto">
-          <div className="space-y-1">
-            <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          <div className="space-y-3">
+            <div className="px-1">
+              <WorkspaceSwitcher />
+            </div>
+            <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">
               Navigation
             </div>
             {navItems.map((item) => (
@@ -177,18 +184,21 @@ export function DashboardShell({ user, subscription, children }: DashboardShellP
 
       {/* Desktop Persistent Sidebar */}
       <aside className="hidden md:flex w-64 flex-col justify-between border-r border-neutral-200 bg-white p-4 shrink-0 min-h-screen sticky top-0 h-screen">
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Logo & Workspace Selector */}
-          <div className="flex items-center justify-between px-2">
-            <Link href="/" className="flex items-center gap-2 font-bold tracking-tight text-neutral-900">
-              <div className="w-8 h-8 rounded-lg bg-neutral-900 flex items-center justify-center text-white shadow-xs">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm leading-none font-semibold">SaaS Starter</span>
-                <span className="text-[10px] text-neutral-400 mt-0.5">Production Template</span>
-              </div>
-            </Link>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between px-2">
+              <Link href="/" className="flex items-center gap-2 font-bold tracking-tight text-neutral-900">
+                <div className="w-8 h-8 rounded-lg bg-neutral-900 flex items-center justify-center text-white shadow-xs">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm leading-none font-semibold">SaaS Starter</span>
+                  <span className="text-[10px] text-neutral-400 mt-0.5">Production Template</span>
+                </div>
+              </Link>
+            </div>
+            <WorkspaceSwitcher />
           </div>
 
           {/* Quick Search / Command Palette Bar */}
@@ -296,12 +306,13 @@ export function DashboardShell({ user, subscription, children }: DashboardShellP
         {/* Top Header Bar */}
         <header className="hidden md:flex h-14 items-center justify-between border-b border-neutral-200 bg-white px-6">
           <div className="flex items-center gap-2 text-xs text-neutral-500 font-medium">
-            <Link href="/app" className="hover:text-neutral-900">
-              Workspace
-            </Link>
+            <span className="flex items-center gap-1.5 font-semibold text-neutral-900">
+              <Building2 className="w-3.5 h-3.5 text-neutral-500" />
+              {currentWorkspace?.name || 'Workspace'}
+            </span>
             <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
-            <span className="text-neutral-900 font-semibold capitalize">
-              {pathname === '/app' ? 'Overview' : pathname.replace('/app/', '')}
+            <span className="text-neutral-700 capitalize">
+              {pathname === '/app' ? 'Overview' : pathname.replace('/app/', '').replace('-', ' ')}
             </span>
           </div>
 

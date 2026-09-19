@@ -37,3 +37,50 @@ export interface ApiKey {
   createdAt: number;
   lastUsedAt: number | null;
 }
+
+export type OrganizationRole = 'owner' | 'admin' | 'billing_manager' | 'member';
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  plan: 'free' | 'pro' | 'enterprise';
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Membership {
+  id: string;
+  organizationId: string;
+  userId: string;
+  role: OrganizationRole;
+  createdAt: number;
+}
+
+export interface OrganizationInvitation {
+  id: string;
+  organizationId: string;
+  email: string;
+  role: OrganizationRole;
+  token: string;
+  expiresAt: number;
+  createdAt: number;
+}
+
+export interface WorkspaceWithRole extends Organization {
+  userRole: OrganizationRole;
+  membershipId: string;
+}
+
+export interface WorkspaceMemberInfo {
+  id: string; // membership id
+  userId: string;
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+  role: OrganizationRole;
+  joinedAt: number;
+}

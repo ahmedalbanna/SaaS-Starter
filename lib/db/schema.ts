@@ -45,6 +45,36 @@ export const apiKeysSqlite = sqliteTable('api_keys', {
   lastUsedAt: integer('last_used_at'),
 });
 
+export const organizationsSqlite = sqliteTable('organizations', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  logoUrl: text('logo_url'),
+  plan: text('plan').notNull().default('free'),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export const membershipsSqlite = sqliteTable('memberships', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id').notNull().references(() => organizationsSqlite.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => usersSqlite.id, { onDelete: 'cascade' }),
+  role: text('role').notNull().default('member'),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const organizationInvitationsSqlite = sqliteTable('organization_invitations', {
+  id: text('id').primaryKey(),
+  organizationId: text('organization_id').notNull().references(() => organizationsSqlite.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  role: text('role').notNull().default('member'),
+  token: text('token').notNull().unique(),
+  expiresAt: integer('expires_at').notNull(),
+  createdAt: integer('created_at').notNull(),
+});
+
 // ==========================================
 // 2. PostgreSQL Schema (Neon / Production)
 // ==========================================
@@ -89,8 +119,41 @@ export const apiKeysPg = pgTable('api_keys', {
   lastUsedAt: pgTimestamp('last_used_at', { mode: 'date' }),
 });
 
+export const organizationsPg = pgTable('organizations', {
+  id: pgText('id').primaryKey(),
+  name: pgVarchar('name', { length: 255 }).notNull(),
+  slug: pgVarchar('slug', { length: 255 }).notNull().unique(),
+  logoUrl: pgText('logo_url'),
+  plan: pgVarchar('plan', { length: 50 }).notNull().default('free'),
+  stripeCustomerId: pgText('stripe_customer_id'),
+  stripeSubscriptionId: pgText('stripe_subscription_id'),
+  createdAt: pgTimestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: pgTimestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const membershipsPg = pgTable('memberships', {
+  id: pgText('id').primaryKey(),
+  organizationId: pgText('organization_id').notNull().references(() => organizationsPg.id, { onDelete: 'cascade' }),
+  userId: pgText('user_id').notNull().references(() => usersPg.id, { onDelete: 'cascade' }),
+  role: pgVarchar('role', { length: 50 }).notNull().default('member'),
+  createdAt: pgTimestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
+export const organizationInvitationsPg = pgTable('organization_invitations', {
+  id: pgText('id').primaryKey(),
+  organizationId: pgText('organization_id').notNull().references(() => organizationsPg.id, { onDelete: 'cascade' }),
+  email: pgVarchar('email', { length: 255 }).notNull(),
+  role: pgVarchar('role', { length: 50 }).notNull().default('member'),
+  token: pgText('token').notNull().unique(),
+  expiresAt: pgTimestamp('expires_at', { mode: 'date' }).notNull(),
+  createdAt: pgTimestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+});
+
 // Canonical aliases defaulting to the active schema
 export const users = usersSqlite;
 export const subscriptions = subscriptionsSqlite;
 export const activityLogs = activityLogsSqlite;
 export const apiKeys = apiKeysSqlite;
+export const organizations = organizationsSqlite;
+export const memberships = membershipsSqlite;
+export const organizationInvitations = organizationInvitationsSqlite;

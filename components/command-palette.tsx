@@ -24,8 +24,11 @@ import {
   Sparkles,
   ExternalLink,
   PlusCircle,
+  Building2,
+  Check,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { useOptionalWorkspace } from '@/components/providers/workspace-provider';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -34,6 +37,7 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
+  const workspaceContext = useOptionalWorkspace();
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -72,6 +76,35 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           <CommandInput placeholder="Type a command or search..." autoFocus />
           <CommandList className="max-h-[350px]">
             <CommandEmpty>No results found.</CommandEmpty>
+
+            {workspaceContext && workspaceContext.workspaces.length > 0 && (
+              <>
+                <CommandGroup heading="Switch Workspace">
+                  {workspaceContext.workspaces.map((ws) => {
+                    const isActive = ws.id === workspaceContext.currentWorkspace?.id;
+                    return (
+                      <CommandItem
+                        key={ws.id}
+                        onSelect={() =>
+                          runCommand(() => {
+                            workspaceContext.switchWorkspace(ws.id);
+                          })
+                        }
+                        className="cursor-pointer gap-2"
+                      >
+                        <Building2 className="h-4 w-4 text-neutral-500" />
+                        <span className="flex-1 truncate">{ws.name}</span>
+                        <span className="text-[10px] text-neutral-400 uppercase font-mono px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-800">
+                          {ws.userRole}
+                        </span>
+                        {isActive && <Check className="h-3.5 w-3.5 text-emerald-600 ml-1" />}
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+                <CommandSeparator />
+              </>
+            )}
 
             <CommandGroup heading="Navigation">
               <CommandItem

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getSubscriptionByUserId } from '@/lib/db';
+import { getSubscriptionByUserId, getOrganizationById } from '@/lib/db';
 import { isStripeConfigured, PRICING_PLANS, getPlanLimits } from '@/lib/stripe';
+import { cookies } from 'next/headers';
+import { ACTIVE_WORKSPACE_COOKIE } from '@/lib/workspace';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,20 +12,35 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const cookieStore = await cookies();
+    const activeOrgId = cookieStore.get(ACTIVE_WORKSPACE_COOKIE)?.value;
+
+    let orgPlan: 'free' | 'pro' | 'enterprise' | null = null;
+    let orgName = '';
+    if (activeOrgId) {
+      const org = await getOrganizationById(activeOrgId);
+      if (org) {
+        orgPlan = org.plan;
+        orgName = org.name;
+      }
+    }
+
     const subscription = await getSubscriptionByUserId(session.user.id);
-    const planId = (subscription?.planId as 'free' | 'pro' | 'enterprise') || 'free';
+    const planId = orgPlan || (subscription?.planId as 'free' | 'pro' | 'enterprise') || 'free';
     const planMeta = PRICING_PLANS.find((p) => p.id === planId) || PRICING_PLANS[0];
     const limits = getPlanLimits(planId);
 
     return NextResponse.json({
       subscription: subscription || {
         userId: session.user.id,
-        planId: 'free',
+        planId,
         status: 'active',
         currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000,
       },
       plan: planMeta,
       limits,
+      workspaceName: orgName || null,
+      workspacePlan: orgPlan,
       isStripeConfigured: isStripeConfigured(),
     });
   } catch (error: any) {

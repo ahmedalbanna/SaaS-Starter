@@ -149,3 +149,45 @@ export async function sendTeamInviteEmail(to: string, inviterName: string, role:
     `,
   });
 }
+
+export function getInvitationEmailTemplate({
+  workspaceName,
+  inviterName,
+  inviteUrl,
+  role,
+}: {
+  workspaceName: string;
+  inviterName: string;
+  inviteUrl: string;
+  role: string;
+}): { html: string; text: string } {
+  const roleName = role.replace('_', ' ').toUpperCase();
+  const text = `${inviterName} has invited you to join ${workspaceName} as a ${roleName} on SaaS Starter. Join here: ${inviteUrl}`;
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 20px; color: #171717;">
+      <div style="padding-bottom: 20px; border-bottom: 1px solid #eaeaea;">
+        <h2 style="font-size: 20px; font-weight: 700; margin: 0 0 8px 0; color: #0a0a0a;">Workspace Invitation</h2>
+        <p style="font-size: 14px; color: #666666; margin: 0;">You've been invited to collaborate on SaaS Starter</p>
+      </div>
+      <div style="padding: 24px 0;">
+        <p style="font-size: 14px; line-height: 1.6; color: #333333; margin-bottom: 16px;">
+          <strong>${inviterName}</strong> has invited you to join the <strong>${workspaceName}</strong> workspace with <strong>${roleName}</strong> privileges.
+        </p>
+        <div style="margin: 28px 0;">
+          <a href="${inviteUrl}" style="display: inline-block; background: #0a0a0a; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 600;">
+            Accept Invitation &amp; Join Workspace
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #888888; word-break: break-all;">
+          Or copy and paste this URL into your browser:<br />
+          <a href="${inviteUrl}" style="color: #444444;">${inviteUrl}</a>
+        </p>
+      </div>
+      <div style="border-top: 1px solid #eaeaea; padding-top: 16px; font-size: 11px; color: #999999;">
+        This invitation link is valid for 7 days. If you were not expecting this invitation, you can safely ignore this email.
+      </div>
+    </div>
+  `;
+
+  return { html, text };
+}

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { isStripeConfigured, getStripe, PRICING_PLANS } from '@/lib/stripe';
-import { upsertSubscription, logActivity } from '@/lib/db';
+import { upsertSubscription, updateOrganizationPlan, logActivity } from '@/lib/db';
+import { cookies } from 'next/headers';
+import { ACTIVE_WORKSPACE_COOKIE } from '@/lib/workspace';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,6 +16,9 @@ export async function POST(req: NextRequest) {
 
     // Determine host for redirect URLs
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    const cookieStore = await cookies();
+    const activeOrgId = cookieStore.get(ACTIVE_WORKSPACE_COOKIE)?.value;
 
     // ---------------------------------------------------------------
     // 1. Stub Mode: When Stripe keys are unset
@@ -30,10 +35,19 @@ export async function POST(req: NextRequest) {
           currentPeriodEnd: Date.now() + (interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000,
         });
 
+        if (activeOrgId) {
+          await updateOrganizationPlan(
+            activeOrgId,
+            planId,
+            'cus_stub_test_dev',
+            `sub_stub_${planId}_${Date.now()}`
+          );
+        }
+
         await logActivity(
           session.user.id,
           'subscription_switched',
-          `[Stub Mode] Upgraded to ${selectedPlan.name} plan (${interval})`
+          `[Stub Mode] Upgraded to ${selectedPlan.name} plan (${interval})${activeOrgId ? ` for workspace ${activeOrgId}` : ''}`
         );
       }
 
@@ -79,6 +93,7 @@ export async function POST(req: NextRequest) {
       client_reference_id: session?.user?.id || undefined,
       metadata: {
         userId: session?.user?.id || '',
+        workspaceId: activeOrgId || '',
         planId: selectedPlan.id,
       },
       success_url: `${origin}/app/billing?checkout_result=success&session_id={CHECKOUT_SESSION_ID}`,

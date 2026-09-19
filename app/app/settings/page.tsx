@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ShieldCheck, User, Lock, Key, Server } from 'lucide-react';
 import { DatabaseDiagnosticsCard } from '@/components/dashboard/database-diagnostics-card';
+import { WorkspaceSettingsCard } from '@/components/dashboard/workspace-settings-card';
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -55,6 +56,9 @@ export default async function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Active Workspace Multi-Tenant Settings */}
+      <WorkspaceSettingsCard />
 
       {/* Security & Authentication Protocol Card */}
       <Card className="shadow-2xs">
