@@ -23,6 +23,13 @@ export interface PlanFeature {
   included: boolean;
 }
 
+export interface PlanLimits {
+  apiRequests: number; // monthly limit (-1 = unlimited)
+  maxProjects: number; // (-1 = unlimited)
+  teamSeats: number;   // (-1 = unlimited)
+  databaseSupport: string;
+}
+
 export interface PricingPlan {
   id: 'free' | 'pro' | 'enterprise';
   name: string;
@@ -32,6 +39,7 @@ export interface PricingPlan {
   badge?: string;
   isPopular?: boolean;
   buttonText: string;
+  limits: PlanLimits;
   features: PlanFeature[];
 }
 
@@ -43,6 +51,12 @@ export const PRICING_PLANS: PricingPlan[] = [
     priceMonthly: 0,
     priceAnnual: 0,
     buttonText: 'Get Started Free',
+    limits: {
+      apiRequests: 1000,
+      maxProjects: 3,
+      teamSeats: 1,
+      databaseSupport: 'SQLite (Dev)',
+    },
     features: [
       { text: 'Up to 3 active projects', included: true },
       { text: '1,000 API requests / month', included: true },
@@ -62,6 +76,12 @@ export const PRICING_PLANS: PricingPlan[] = [
     badge: 'Most Popular',
     isPopular: true,
     buttonText: 'Start 14-Day Free Trial',
+    limits: {
+      apiRequests: 250000,
+      maxProjects: -1,
+      teamSeats: 5,
+      databaseSupport: 'Serverless Postgres',
+    },
     features: [
       { text: 'Unlimited active projects', included: true },
       { text: '250,000 API requests / month', included: true },
@@ -80,6 +100,12 @@ export const PRICING_PLANS: PricingPlan[] = [
     priceAnnual: 79, // $948 billed annually ($79/mo)
     badge: 'Scale',
     buttonText: 'Upgrade to Enterprise',
+    limits: {
+      apiRequests: -1,
+      maxProjects: -1,
+      teamSeats: -1,
+      databaseSupport: 'Dedicated Postgres Instance',
+    },
     features: [
       { text: 'Unlimited workspaces & seats', included: true },
       { text: 'Unlimited high-throughput API calls', included: true },
@@ -91,3 +117,9 @@ export const PRICING_PLANS: PricingPlan[] = [
     ],
   },
 ];
+
+export function getPlanLimits(planId: string): PlanLimits {
+  const plan = PRICING_PLANS.find((p) => p.id === planId);
+  return plan?.limits || PRICING_PLANS[0].limits;
+}
+

@@ -57,6 +57,13 @@ export function DashboardShell({ user, subscription, children }: DashboardShellP
       current: pathname === '/app',
     },
     {
+      name: 'AI Co-Pilot',
+      href: '/app/ai-chat',
+      icon: Sparkles,
+      current: pathname.startsWith('/app/ai-chat'),
+      badge: 'OpenAI',
+    },
+    {
       name: 'Subscriptions & Billing',
       href: '/app/billing',
       icon: CreditCard,
@@ -136,6 +143,11 @@ export function DashboardShell({ user, subscription, children }: DashboardShellP
               >
                 <item.icon className="w-4 h-4 shrink-0" />
                 <span>{item.name}</span>
+                {item.badge && (
+                  <span className="ml-auto text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </div>
@@ -211,6 +223,11 @@ export function DashboardShell({ user, subscription, children }: DashboardShellP
               >
                 <item.icon className="w-4 h-4 shrink-0" />
                 <span>{item.name}</span>
+                {item.badge && (
+                  <span className="ml-auto text-[9px] font-mono font-medium px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                    {item.badge}
+                  </span>
+                )}
                 {item.href === '/app/billing' && planId === 'pro' && (
                   <span className="ml-auto flex h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-white" />
                 )}

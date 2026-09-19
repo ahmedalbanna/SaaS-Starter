@@ -83,6 +83,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <CommandShortcut>G D</CommandShortcut>
               </CommandItem>
               <CommandItem
+                onSelect={() => runCommand(() => router.push('/app/ai-chat'))}
+                className="cursor-pointer gap-2"
+              >
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <span>AI Co-Pilot & Chat</span>
+                <CommandShortcut>G A</CommandShortcut>
+              </CommandItem>
+              <CommandItem
                 onSelect={() => runCommand(() => router.push('/app/billing'))}
                 className="cursor-pointer gap-2"
               >
