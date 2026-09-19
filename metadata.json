@@ -1,0 +1,6 @@
+{
+  "name": "SaaS Starter",
+  "description": "Production-grade SaaS starter with Next.js App Router, Auth.js email+password authentication, protected app dashboard, Stripe checkout, and Drizzle ORM data layer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
