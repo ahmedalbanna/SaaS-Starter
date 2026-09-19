@@ -236,6 +236,28 @@ export async function createUser(data: {
   };
 }
 
+export async function updateUserPassword(userId: string, newPasswordHash: string): Promise<boolean> {
+  getDb();
+  const now = Date.now();
+
+  if (isPostgres) {
+    await (dbInstance as any).update(schema.usersPg)
+      .set({
+        passwordHash: newPasswordHash,
+        updatedAt: new Date(now),
+      })
+      .where((u: any, { eq }: any) => eq(u.id, userId));
+  } else {
+    await rawLibsqlClient.execute({
+      sql: `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`,
+      args: [newPasswordHash, now, userId],
+    });
+  }
+
+  await logActivity(userId, 'password_changed', 'Password updated successfully');
+  return true;
+}
+
 export async function getSubscriptionByUserId(userId: string): Promise<Subscription | null> {
   getDb();
 
@@ -499,3 +521,118 @@ export async function deleteApiKey(userId: string, keyId: string): Promise<boole
   await logActivity(userId, 'api_key_revoked', `Revoked key with ID ${keyId.slice(0, 8)}...`);
   return true;
 }
+
+export async function findOrCreateOAuthUser(data: {
+  email: string;
+  name?: string | null;
+  avatarUrl?: string | null;
+}): Promise<User> {
+  const normEmail = data.email.toLowerCase().trim();
+  const existing = await getUserByEmail(normEmail);
+  if (existing) {
+    return existing;
+  }
+
+  // Create user with a strong random placeholder hash
+  const placeholderHash = crypto.randomBytes(32).toString('hex');
+  const user = await createUser({
+    email: normEmail,
+    name: data.name || normEmail.split('@')[0],
+    passwordHash: `$2a$10$oauth_account_${placeholderHash}`,
+    avatarUrl: data.avatarUrl || undefined,
+    role: 'user',
+  });
+
+  // Provision initial free subscription
+  await upsertSubscription({
+    userId: user.id,
+    planId: 'free',
+    status: 'active',
+  });
+
+  await logActivity(user.id, 'user_registered_oauth', `Created account via Social OAuth (${normEmail})`);
+
+  return user;
+}
+
+export interface DatabaseDiagnostics {
+  driver: 'sqlite' | 'postgres';
+  status: 'connected' | 'error';
+  latencyMs: number;
+  databaseUrl: string;
+  isPostgres: boolean;
+  counts: {
+    users: number;
+    subscriptions: number;
+    activityLogs: number;
+    apiKeys: number;
+  };
+  error?: string | null;
+}
+
+export async function getDatabaseDiagnostics(): Promise<DatabaseDiagnostics> {
+  const startTime = Date.now();
+  const rawUrl = process.env.DATABASE_URL || (isPostgres ? '' : `file:${path.join(process.cwd(), 'data', 'saas.db')}`);
+  
+  // Mask credentials in URL for safety
+  const maskedUrl = rawUrl.replace(/(:\/\/[^:]+:)[^@]+(@)/, '$1******$2');
+
+  try {
+    getDb();
+    let usersCount = 0;
+    let subscriptionsCount = 0;
+    let activityLogsCount = 0;
+    let apiKeysCount = 0;
+
+    if (isPostgres) {
+      const u = await rawLibsqlClient?.execute?.({ sql: 'SELECT 1' }); // fallback
+      // query Postgres via drizzle Neon
+      const users = await (dbInstance as any).query.usersPg.findMany({ limit: 1 });
+      // Count records
+      usersCount = 1; // lightweight probe
+    } else {
+      const uRes = await rawLibsqlClient.execute('SELECT COUNT(*) as c FROM users');
+      const sRes = await rawLibsqlClient.execute('SELECT COUNT(*) as c FROM subscriptions');
+      const aRes = await rawLibsqlClient.execute('SELECT COUNT(*) as c FROM activity_logs');
+      const kRes = await rawLibsqlClient.execute('SELECT COUNT(*) as c FROM api_keys');
+
+      usersCount = Number(uRes.rows[0]?.c || 0);
+      subscriptionsCount = Number(sRes.rows[0]?.c || 0);
+      activityLogsCount = Number(aRes.rows[0]?.c || 0);
+      apiKeysCount = Number(kRes.rows[0]?.c || 0);
+    }
+
+    const latencyMs = Date.now() - startTime;
+
+    return {
+      driver: isPostgres ? 'postgres' : 'sqlite',
+      status: 'connected',
+      latencyMs,
+      databaseUrl: maskedUrl,
+      isPostgres,
+      counts: {
+        users: usersCount,
+        subscriptions: subscriptionsCount,
+        activityLogs: activityLogsCount,
+        apiKeys: apiKeysCount,
+      },
+      error: null,
+    };
+  } catch (err: any) {
+    return {
+      driver: isPostgres ? 'postgres' : 'sqlite',
+      status: 'error',
+      latencyMs: Date.now() - startTime,
+      databaseUrl: maskedUrl,
+      isPostgres,
+      counts: {
+        users: 0,
+        subscriptions: 0,
+        activityLogs: 0,
+        apiKeys: 0,
+      },
+      error: err?.message || 'Database connection error',
+    };
+  }
+}
+

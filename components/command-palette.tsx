@@ -83,14 +83,6 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <CommandShortcut>G D</CommandShortcut>
               </CommandItem>
               <CommandItem
-                onSelect={() => runCommand(() => router.push('/app/ai-chat'))}
-                className="cursor-pointer gap-2"
-              >
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                <span>AI Co-Pilot & Chat</span>
-                <CommandShortcut>G A</CommandShortcut>
-              </CommandItem>
-              <CommandItem
                 onSelect={() => runCommand(() => router.push('/app/billing'))}
                 className="cursor-pointer gap-2"
               >
@@ -146,11 +138,18 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
             <CommandGroup heading="Quick Actions">
               <CommandItem
-                onSelect={() => runCommand(() => router.push('/pricing'))}
+                onSelect={() => runCommand(() => router.push('/app/billing'))}
                 className="cursor-pointer gap-2"
               >
                 <Sparkles className="h-4 w-4 text-amber-500" />
-                <span>Upgrade to Pro Plan</span>
+                <span>Stripe Webhook Simulator</span>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => runCommand(() => router.push('/app/settings'))}
+                className="cursor-pointer gap-2"
+              >
+                <Settings className="h-4 w-4 text-neutral-500" />
+                <span>Neon Postgres Diagnostics</span>
               </CommandItem>
               <CommandItem
                 onSelect={() => runCommand(() => router.push('/app/api-keys'))}
@@ -160,11 +159,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <span>Generate New API Key</span>
               </CommandItem>
               <CommandItem
-                onSelect={() => runCommand(() => window.open('https://github.com', '_blank'))}
+                onSelect={() => runCommand(() => router.push('/app/team'))}
                 className="cursor-pointer gap-2"
               >
-                <ExternalLink className="h-4 w-4 text-neutral-500" />
-                <span>Documentation & Guides</span>
+                <Users className="h-4 w-4 text-neutral-500" />
+                <span>Invite Workspace Teammates</span>
               </CommandItem>
             </CommandGroup>
 

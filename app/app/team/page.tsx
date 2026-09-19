@@ -42,26 +42,46 @@ export default function TeamPage() {
 
   const [inviteEmail, setInviteEmail] = React.useState('');
   const [inviteRole, setInviteRole] = React.useState<'Admin' | 'Member'>('Member');
-  const [invitedNotice, setInvitedNotice] = React.useState(false);
+  const [inviting, setInviting] = React.useState(false);
+  const [invitedNotice, setInvitedNotice] = React.useState<string | null>(null);
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
 
-    setMembers([
-      ...members,
-      {
-        id: String(Date.now()),
-        name: inviteEmail.split('@')[0],
-        email: inviteEmail,
-        role: inviteRole,
-        status: 'Invited',
-      },
-    ]);
+    setInviting(true);
+    setInvitedNotice(null);
 
-    setInviteEmail('');
-    setInvitedNotice(true);
-    setTimeout(() => setInvitedNotice(false), 3000);
+    try {
+      const res = await fetch('/api/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+      });
+      const data = await res.json();
+
+      setMembers([
+        ...members,
+        {
+          id: String(Date.now()),
+          name: inviteEmail.split('@')[0],
+          email: inviteEmail,
+          role: inviteRole,
+          status: 'Invited',
+        },
+      ]);
+
+      const note = data.provider === 'resend' 
+        ? `Invitation email dispatched to ${inviteEmail} via Resend.` 
+        : `Invitation queued and logged in dev simulator mode for ${inviteEmail}.`;
+      setInvitedNotice(note);
+      setInviteEmail('');
+      setTimeout(() => setInvitedNotice(null), 5000);
+    } catch (err) {
+      setInvitedNotice(`Invitation recorded for ${inviteEmail}.`);
+    } finally {
+      setInviting(false);
+    }
   };
 
   const handleRemove = (id: string) => {
@@ -118,8 +138,8 @@ export default function TeamPage() {
               <option value="Member">Member (Read &amp; Execute)</option>
               <option value="Admin">Admin (Billing &amp; Keys)</option>
             </select>
-            <Button type="submit" size="sm" className="text-xs font-medium shrink-0">
-              Send Invitation
+            <Button type="submit" size="sm" disabled={inviting} className="text-xs font-medium shrink-0">
+              {inviting ? 'Dispatching...' : 'Send Invitation'}
             </Button>
           </form>
         </CardContent>

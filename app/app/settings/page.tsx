@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ShieldCheck, User, Lock, Key, Server } from 'lucide-react';
+import { DatabaseDiagnosticsCard } from '@/components/dashboard/database-diagnostics-card';
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -98,6 +99,9 @@ export default async function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dual-Dialect Database Diagnostics & Neon Switcher */}
+      <DatabaseDiagnosticsCard />
     </div>
   );
 }

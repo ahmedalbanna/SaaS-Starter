@@ -6,11 +6,12 @@ A production-grade, type-safe SaaS application template built with **Next.js 15 
 
 ## Features
 
-- **Authentication & Sessions**: Email + password credentials authentication with `bcryptjs` salted password hashing and secure stateless JWT sessions managed by **Auth.js (NextAuth v5)**.
-- **Protected Dashboard Shell**: Full-featured `/app` workspace with a responsive sidebar, user profile selector, live metrics, activity audit log, team manager, and API keys panel.
+- **Authentication & Sessions**: Email + password credentials authentication with `bcryptjs` salted password hashing, password reset flow (`/forgot-password`, `/reset-password`), optional Social OAuth providers (**GitHub** & **Google**), and secure stateless JWT sessions managed by **Auth.js (NextAuth v5)**.
+- **Protected Dashboard Shell**: Full-featured `/app` workspace with a responsive sidebar, user profile selector, live metrics, activity audit log, team manager with email invitations, and API keys panel.
 - **Spotlight Command Palette**: Global `Cmd+K` / `Ctrl+K` keyboard-first command palette built with `cmdk` for fast route navigation and actions.
-- **Stripe Billing & Subscriptions**: Three-tier pricing (`Starter`, `Pro`, `Enterprise`) with monthly/annual intervals. Features an **interactive Sandbox Stub Mode** when Stripe keys are unset, so you can test complete checkout and upgrade flows without external API credentials.
-- **Dual-Dialect Drizzle ORM**: Zero-config SQLite via `@libsql/client` for fast offline development, and a 1-variable switch (`DATABASE_DRIVER="postgres"`) for **Neon Serverless Postgres** in production.
+- **Stripe Billing & Webhook Simulator**: Three-tier pricing (`Starter`, `Pro`, `Enterprise`) with monthly/annual intervals, an interactive dev stub mode, and a **Stripe Webhook Event Simulator** directly in `/app/billing` to test real database tier updates without the Stripe CLI.
+- **Transactional Emails (Resend + Dev Outbox)**: Modular email client (`lib/email.ts`) with prebuilt templates for welcome emails, password resets, and team invitations. Includes an in-app dev outbox inspector.
+- **Dual-Dialect Drizzle ORM & Neon Diagnostics**: Zero-config SQLite via `@libsql/client` for fast offline development, and an in-app Database Diagnostics & Neon Switcher panel in `/app/settings` with automated telemetry and 1-variable switch (`DATABASE_DRIVER="postgres"`).
 - **Database Migrations & Seed**: Run `npm run db:seed` to provision demo users, sample active Pro subscriptions, activity trails, and API tokens.
 - **Modern UI & Design System**: Crafted with Tailwind CSS v4, `@tailwindcss/postcss`, Lucide icons, and shadcn/ui components.
 

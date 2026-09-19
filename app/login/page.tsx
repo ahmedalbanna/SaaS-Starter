@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { ShieldCheck, ArrowRight, Loader2, KeyRound, Sparkles } from 'lucide-react';
+import { SocialAuthButtons } from '@/components/auth/social-auth-buttons';
 
 function LoginContent() {
   const router = useRouter();
@@ -166,11 +167,24 @@ function LoginContent() {
           <CardHeader className="pb-4">
             <CardTitle className="text-base">Sign In</CardTitle>
             <CardDescription className="text-xs">
-              Enter your email and password below
+              Sign in with social provider or email credentials
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
+          
+          <CardContent className="space-y-4">
+            {/* Social OAuth Providers */}
+            <SocialAuthButtons callbackUrl={callbackUrl} />
+
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-neutral-200" />
+              </div>
+              <div className="relative flex justify-center text-[11px] uppercase">
+                <span className="bg-white px-2 text-neutral-400 font-medium">Or email</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-neutral-700" htmlFor="email">
                   Email Address
@@ -191,7 +205,12 @@ function LoginContent() {
                   <label className="text-xs font-medium text-neutral-700" htmlFor="password">
                     Password
                   </label>
-                  <span className="text-xs text-neutral-400">Min. 8 characters</span>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-neutral-500 hover:text-neutral-900 underline underline-offset-2"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
                 <Input
                   id="password"
@@ -203,12 +222,10 @@ function LoginContent() {
                   disabled={loading || quickLoading}
                 />
               </div>
-            </CardContent>
 
-            <CardFooter className="flex flex-col gap-3 pt-2">
               <Button
                 type="submit"
-                className="w-full font-medium"
+                className="w-full font-medium mt-2"
                 disabled={loading || quickLoading}
               >
                 {loading ? (
@@ -223,8 +240,8 @@ function LoginContent() {
                   </span>
                 )}
               </Button>
-            </CardFooter>
-          </form>
+            </form>
+          </CardContent>
         </Card>
 
         {/* Footer Link */}

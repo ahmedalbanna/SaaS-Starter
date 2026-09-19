@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { ShieldCheck, ArrowRight, Loader2, Check } from 'lucide-react';
+import { SocialAuthButtons } from '@/components/auth/social-auth-buttons';
 
 function RegisterContent() {
   const router = useRouter();
@@ -95,11 +96,25 @@ function RegisterContent() {
           <CardHeader className="pb-4">
             <CardTitle className="text-base">Sign Up</CardTitle>
             <CardDescription className="text-xs">
-              Fill in your details to create your secure workspace
+              Fill in your details or sign up with a provider
             </CardDescription>
           </CardHeader>
+          
+          <CardContent className="space-y-4 pb-0">
+            <SocialAuthButtons callbackUrl={callbackUrl} />
+
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-neutral-200" />
+              </div>
+              <div className="relative flex justify-center text-[11px] uppercase">
+                <span className="bg-white px-2 text-neutral-400 font-medium">Or register with email</span>
+              </div>
+            </div>
+          </CardContent>
+
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-neutral-700" htmlFor="name">
                   Full Name

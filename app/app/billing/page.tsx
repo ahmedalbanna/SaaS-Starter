@@ -3,22 +3,24 @@
 import * as React from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PRICING_PLANS, PricingPlan, PlanLimits } from '@/lib/stripe';
+import { PRICING_PLANS } from '@/lib/stripe';
 import {
   CreditCard,
   CheckCircle2,
+  Sparkles,
   ExternalLink,
+  ShieldCheck,
+  AlertCircle,
   Loader2,
   Calendar,
   Check,
-  Zap,
-  Users,
-  Activity,
-  Database,
-  Layers,
+  Terminal,
+  Mail,
+  Radio,
+  X,
 } from 'lucide-react';
 
 function BillingContent() {
@@ -26,65 +28,72 @@ function BillingContent() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
 
-  const isCheckoutSuccess = searchParams.get('checkout_result') === 'success';
   const queryPlan = searchParams.get('plan') as 'free' | 'pro' | 'enterprise' | null;
-
-  const [loadingData, setLoadingData] = React.useState(true);
-  const [subData, setSubData] = React.useState<{
-    subscription: any;
-    plan: PricingPlan;
-    limits: PlanLimits;
-    isStripeConfigured: boolean;
-  } | null>(null);
+  const isCheckoutSuccess = searchParams.get('checkout_result') === 'success';
 
   const [loadingAction, setLoadingAction] = React.useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = React.useState<'free' | 'pro' | 'enterprise' | null>(null);
   const [customStubMessage, setCustomStubMessage] = React.useState<string | null>(null);
   const [isDismissed, setIsDismissed] = React.useState(false);
 
-  // Fetch subscription from database on mount
-  const fetchSubscription = React.useCallback(async () => {
-    try {
-      const res = await fetch('/api/billing/subscription');
-      if (res.ok) {
-        const data = await res.json();
-        setSubData(data);
-      }
-    } catch (err) {
-      console.error('Failed to load subscription status', err);
-    } finally {
-      setLoadingData(false);
-    }
-  }, []);
+  // Webhook Simulator state
+  const [simulating, setSimulating] = React.useState<string | null>(null);
+  const [webhookFeedback, setWebhookFeedback] = React.useState<{ success: boolean; message: string } | null>(null);
 
-  React.useEffect(() => {
-    let active = true;
-    fetch('/api/billing/subscription')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (active && data) {
-          setSubData(data);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load subscription status', err);
-      })
-      .finally(() => {
-        if (active) {
-          setLoadingData(false);
-        }
-      });
+  // Transactional Email Outbox state
+  const [outbox, setOutbox] = React.useState<any[]>([]);
+  const [loadingOutbox, setLoadingOutbox] = React.useState(false);
+  const [showOutbox, setShowOutbox] = React.useState(false);
 
-    return () => {
-      active = false;
-    };
-  }, []);
-
+  const currentPlan = selectedPlan || queryPlan || 'pro';
   const stubMessage = isDismissed
     ? null
     : customStubMessage ||
       (isCheckoutSuccess && queryPlan
-        ? `Successfully activated ${queryPlan.toUpperCase()} plan!`
+        ? `Successfully activated ${queryPlan.toUpperCase()} plan (Stripe Dev Stub simulation).`
         : null);
+
+  const handleSimulateWebhook = async (eventType: string, planId?: string) => {
+    setSimulating(eventType + (planId || ''));
+    setWebhookFeedback(null);
+
+    try {
+      const res = await fetch('/api/stripe/simulate-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventType, planId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Simulation failed');
+
+      if (planId) {
+        setSelectedPlan(planId as any);
+      } else if (eventType === 'customer.subscription.deleted') {
+        setSelectedPlan('free');
+      }
+
+      setWebhookFeedback({ success: true, message: data.message });
+      setTimeout(() => setWebhookFeedback(null), 6000);
+    } catch (err: any) {
+      setWebhookFeedback({ success: false, message: err.message || 'Webhook simulation error' });
+    } finally {
+      setSimulating(null);
+    }
+  };
+
+  const handleFetchOutbox = async () => {
+    setLoadingOutbox(true);
+    setShowOutbox(true);
+    try {
+      const res = await fetch('/api/email/outbox');
+      const data = await res.json();
+      setOutbox(data.outbox || []);
+    } catch {
+      setOutbox([]);
+    } finally {
+      setLoadingOutbox(false);
+    }
+  };
 
   const handleOpenPortal = async () => {
     setLoadingAction('portal');
@@ -94,6 +103,7 @@ function BillingContent() {
       if (data.mode === 'stub') {
         setIsDismissed(false);
         setCustomStubMessage(data.message);
+        setLoadingAction(null);
         return;
       }
       if (data.url) {
@@ -118,9 +128,9 @@ function BillingContent() {
       });
       const data = await res.json();
       if (data.mode === 'stub') {
+        setSelectedPlan(planId);
         setIsDismissed(false);
-        setCustomStubMessage(`Switched to ${planId.toUpperCase()} plan! (Persisted in database)`);
-        await fetchSubscription();
+        setCustomStubMessage(`Upgraded to ${planId.toUpperCase()} plan via dev stub!`);
         router.refresh();
       } else if (data.url) {
         window.location.assign(data.url);
@@ -132,21 +142,7 @@ function BillingContent() {
     }
   };
 
-  if (loadingData) {
-    return (
-      <div className="py-16 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
-      </div>
-    );
-  }
-
-  const currentPlanId = subData?.subscription?.planId || 'free';
-  const activePlanMeta = PRICING_PLANS.find((p) => p.id === currentPlanId) || PRICING_PLANS[0];
-  const limits = subData?.limits || activePlanMeta.limits;
-
-  // Mocked simulated usage metrics for demonstration
-  const apiUsagePercent = limits.apiRequests === -1 ? 12 : Math.min(100, Math.round((1420 / limits.apiRequests) * 100));
-  const teamSeatsPercent = limits.teamSeats === -1 ? 25 : Math.min(100, Math.round((2 / limits.teamSeats) * 100));
+  const activePlanMeta = PRICING_PLANS.find((p) => p.id === currentPlan) || PRICING_PLANS[1];
 
   return (
     <div className="space-y-8">
@@ -155,7 +151,7 @@ function BillingContent() {
           Subscriptions &amp; Billing
         </h1>
         <p className="text-xs text-neutral-500 mt-1">
-          Manage your subscription tier, billing preferences, and feature limits.
+          Manage your subscription tier, payment methods, and automated invoices.
         </p>
       </div>
 
@@ -185,7 +181,7 @@ function BillingContent() {
               <CardTitle className="text-lg font-bold">
                 {activePlanMeta.name} Plan
               </CardTitle>
-              <Badge variant="default" className="text-xs font-mono uppercase bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+              <Badge variant="default" className="text-xs font-mono uppercase">
                 Active
               </Badge>
             </div>
@@ -212,82 +208,34 @@ function BillingContent() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-            <div className="p-3.5 rounded-lg bg-neutral-50 border border-neutral-100">
+            <div className="p-3 rounded-lg bg-neutral-50 border border-neutral-100">
               <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                Current Price
+                Price
               </span>
               <div className="text-lg font-bold text-neutral-900 mt-0.5">
                 ${activePlanMeta.priceMonthly} / month
               </div>
             </div>
 
-            <div className="p-3.5 rounded-lg bg-neutral-50 border border-neutral-100">
+            <div className="p-3 rounded-lg bg-neutral-50 border border-neutral-100">
               <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                Renewal Period
+                Renewal Date
               </span>
               <div className="text-lg font-bold text-neutral-900 mt-0.5 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-neutral-400" />
-                <span>Next billing cycle in 30 days</span>
+                <span>In 30 days</span>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-lg bg-neutral-50 border border-neutral-100">
+            <div className="p-3 rounded-lg bg-neutral-50 border border-neutral-100">
               <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                Database Support
+                Payment Integration
               </span>
               <div className="text-lg font-bold text-neutral-900 mt-0.5 flex items-center gap-1.5">
-                <Database className="w-4 h-4 text-indigo-600" />
-                <span>{limits.databaseSupport}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Plan Quotas & Usage Meters */}
-          <div className="pt-2 border-t border-neutral-100">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-3 flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-neutral-700" />
-              Resource Limits &amp; Monthly Usage
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* API Requests Usage */}
-              <div className="p-3.5 rounded-lg border border-neutral-200 bg-white space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-neutral-700 flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    API Requests
-                  </span>
-                  <span className="font-mono text-neutral-500">
-                    {limits.apiRequests === -1 ? 'Unlimited' : `1,420 / ${limits.apiRequests.toLocaleString()}`}
-                  </span>
-                </div>
-                <div className="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-neutral-900 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${apiUsagePercent}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Team Member Seats */}
-              <div className="p-3.5 rounded-lg border border-neutral-200 bg-white space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-neutral-700 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-blue-500" />
-                    Team Seats
-                  </span>
-                  <span className="font-mono text-neutral-500">
-                    {limits.teamSeats === -1 ? 'Unlimited' : `2 / ${limits.teamSeats}`}
-                  </span>
-                </div>
-                <div className="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${teamSeatsPercent}%` }}
-                  />
-                </div>
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span>Stripe Checkout</span>
               </div>
             </div>
           </div>
@@ -296,63 +244,33 @@ function BillingContent() {
 
       {/* Available Plans Switcher */}
       <div className="space-y-4">
-        <div>
-          <h3 className="text-base font-bold text-neutral-900">
-            Available Subscription Tiers
-          </h3>
-          <p className="text-xs text-neutral-500">
-            Upgrade or switch tiers anytime. Pro and Enterprise include expanded database capabilities and higher rate limits.
-          </p>
-        </div>
-
+        <h3 className="text-base font-bold text-neutral-900">
+          Change Subscription Plan
+        </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {PRICING_PLANS.map((plan) => {
-            const isCurrent = plan.id === currentPlanId;
+            const isCurrent = plan.id === currentPlan;
             return (
               <Card
                 key={plan.id}
-                className={`p-5 flex flex-col justify-between transition-all duration-150 ${
-                  isCurrent ? 'border-neutral-900 ring-1 ring-neutral-900 shadow-xs' : 'border-neutral-200 hover:border-neutral-300'
+                className={`p-5 flex flex-col justify-between ${
+                  isCurrent ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200'
                 }`}
               >
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-sm text-neutral-900">{plan.name}</h4>
-                    {isCurrent ? (
+                    {isCurrent && (
                       <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                        Active Tier
+                        Current
                       </span>
-                    ) : (
-                      plan.badge && (
-                        <span className="text-[10px] uppercase font-bold text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">
-                          {plan.badge}
-                        </span>
-                      )
                     )}
                   </div>
-
-                  <div className="text-2xl font-extrabold text-neutral-900">
+                  <div className="text-2xl font-extrabold">
                     ${plan.priceMonthly}
-                    <span className="text-xs font-normal text-neutral-500"> / month</span>
+                    <span className="text-xs font-normal text-neutral-500"> / mo</span>
                   </div>
-
-                  <p className="text-xs text-neutral-500 leading-relaxed">
-                    {plan.description}
-                  </p>
-
-                  <div className="pt-2 space-y-2 border-t border-neutral-100">
-                    <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                      Included Features
-                    </p>
-                    <ul className="space-y-1.5 text-xs text-neutral-600">
-                      {plan.features.slice(0, 4).map((f, idx) => (
-                        <li key={idx} className="flex items-start gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                          <span>{f.text}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <p className="text-xs text-neutral-500">{plan.description}</p>
                 </div>
 
                 <div className="pt-5">
@@ -361,12 +279,12 @@ function BillingContent() {
                     disabled={isCurrent || loadingAction === plan.id}
                     variant={isCurrent ? 'secondary' : 'default'}
                     size="sm"
-                    className={`w-full text-xs font-medium ${!isCurrent ? 'bg-neutral-900 hover:bg-neutral-800 text-white' : ''}`}
+                    className="w-full text-xs font-medium"
                   >
                     {loadingAction === plan.id ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : isCurrent ? (
-                      'Current Active Plan'
+                      'Current Plan'
                     ) : (
                       `Switch to ${plan.name}`
                     )}
@@ -376,6 +294,189 @@ function BillingContent() {
             );
           })}
         </div>
+      </div>
+
+      {/* Developer Webhook Simulator & Integration Inspector */}
+      <div className="space-y-4 pt-4 border-t border-neutral-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-neutral-700" />
+              <span>Stripe Webhook Simulator &amp; Tooling</span>
+            </h3>
+            <p className="text-xs text-neutral-500">
+              Test real database tier transitions and audit logs without needing the external Stripe CLI.
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFetchOutbox}
+            disabled={loadingOutbox}
+            className="text-xs shrink-0 flex items-center gap-1.5"
+          >
+            <Mail className="w-3.5 h-3.5 text-neutral-600" />
+            <span>View Sent Emails ({outbox.length || 'Outbox'})</span>
+          </Button>
+        </div>
+
+        {webhookFeedback && (
+          <div
+            className={`p-3 rounded-lg text-xs flex items-center gap-2 border ${
+              webhookFeedback.success
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
+            {webhookFeedback.success ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            )}
+            <span>{webhookFeedback.message}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card className="p-4 flex flex-col justify-between space-y-3 bg-neutral-50/50 border-neutral-200">
+            <div>
+              <div className="text-xs font-semibold text-neutral-900">Simulate Pro Upgrade</div>
+              <p className="text-[11px] text-neutral-500 mt-1">
+                Dispatches checkout.session.completed for Pro plan to local Drizzle ORM.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs font-medium"
+              disabled={simulating !== null}
+              onClick={() => handleSimulateWebhook('checkout.session.completed', 'pro')}
+            >
+              {simulating === 'checkout.session.completedpro' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                'Trigger Pro Event'
+              )}
+            </Button>
+          </Card>
+
+          <Card className="p-4 flex flex-col justify-between space-y-3 bg-neutral-50/50 border-neutral-200">
+            <div>
+              <div className="text-xs font-semibold text-neutral-900">Simulate Enterprise</div>
+              <p className="text-[11px] text-neutral-500 mt-1">
+                Dispatches checkout.session.completed for Enterprise tier.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs font-medium"
+              disabled={simulating !== null}
+              onClick={() => handleSimulateWebhook('checkout.session.completed', 'enterprise')}
+            >
+              {simulating === 'checkout.session.completedenterprise' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                'Trigger Enterprise'
+              )}
+            </Button>
+          </Card>
+
+          <Card className="p-4 flex flex-col justify-between space-y-3 bg-neutral-50/50 border-neutral-200">
+            <div>
+              <div className="text-xs font-semibold text-neutral-900">Simulate Cancellation</div>
+              <p className="text-[11px] text-neutral-500 mt-1">
+                Dispatches customer.subscription.deleted and downgrades account to Free.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs font-medium"
+              disabled={simulating !== null}
+              onClick={() => handleSimulateWebhook('customer.subscription.deleted')}
+            >
+              {simulating === 'customer.subscription.deleted' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                'Trigger Cancel Event'
+              )}
+            </Button>
+          </Card>
+
+          <Card className="p-4 flex flex-col justify-between space-y-3 bg-neutral-50/50 border-neutral-200">
+            <div>
+              <div className="text-xs font-semibold text-neutral-900">Invoice Payment</div>
+              <p className="text-[11px] text-neutral-500 mt-1">
+                Dispatches invoice.payment_succeeded and records an audit log.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs font-medium"
+              disabled={simulating !== null}
+              onClick={() => handleSimulateWebhook('invoice.payment_succeeded')}
+            >
+              {simulating === 'invoice.payment_succeeded' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                'Trigger Invoice Event'
+              )}
+            </Button>
+          </Card>
+        </div>
+
+        {/* Transactional Emails Outbox Inspector Modal */}
+        {showOutbox && (
+          <Card className="border-neutral-300 p-4 bg-white shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-neutral-700" />
+                <h4 className="text-sm font-bold text-neutral-900">
+                  Transactional Emails Dev Outbox
+                </h4>
+                <span className="text-[11px] text-neutral-500">
+                  ({outbox.length} messages)
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowOutbox(false)}
+                className="h-7 w-7 p-0"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {outbox.length === 0 ? (
+              <p className="text-xs text-neutral-500 py-4 text-center">
+                No emails sent yet. Test password reset or team invites to populate this outbox.
+              </p>
+            ) : (
+              <div className="divide-y divide-neutral-100 max-h-64 overflow-y-auto pr-1">
+                {outbox.map((email) => (
+                  <div key={email.id} className="py-2.5 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-neutral-900">{email.subject}</span>
+                      <span className="text-[10px] text-neutral-400">
+                        {new Date(email.sentAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-neutral-500 text-[11px]">
+                      <span>To: {email.to}</span>
+                      <span className="uppercase text-[9px] font-bold bg-neutral-100 px-1.5 py-0.5 rounded">
+                        {email.provider}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
       </div>
     </div>
   );
@@ -390,13 +491,8 @@ export default function BillingPage() {
         </div>
       }
     >
-      <PricingContentWrapper />
+      <BillingContent />
     </React.Suspense>
   );
 }
-
-function PricingContentWrapper() {
-  return <BillingContent />;
-}
-
 
